@@ -4,7 +4,7 @@ import json
 import requests
 from dotenv import load_dotenv
 import time
-
+import csv
 
 class FileInfo:
     def __init__(self, path, name, size):
@@ -151,11 +151,32 @@ def upload_file(file):
                 print('\033[92m' + file.name + ' uploaded successful' + '\033[0m')
                 file_id = data['data']['file']['metadata']['id']
                 full_url = data['data']['file']['url']['full']
+                #print(os.getenv('COMMUNITY_CONTRIBUTION'))
+                if os.getenv('COMMUNITY_CONTRIBUTION') == 'true':
+                    community_contribution(file.workshop_id, file.name, full_url)
+
                 return file_id, full_url
             else:
                 print('Upload failed. ' + data['error']['message'])
         else:
             print('Error uploading file')
+
+def community_contribution(workshopid,name,anon_link):
+    form_url = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSfSh9WY6dzxueZ5yXSCXdzWNvm9gHosvhM6li-XBIUiAWPX4Q/formResponse"
+    form_data = {
+        f"entry.326097042": f"{workshopid}",
+        f"entry.2142133025": f"{name}",
+        f"entry.1514890636": f"{anon_link}",
+    }
+    # Send the POST request to submit the form
+    response = requests.post(form_url, data=form_data)
+    #TODO: Remove debug
+    #print(response.status_code)
+    #print(response.text)
+    if response.status_code == 200:
+        print(name + " has been added to community list. Thank you!")
+    else:
+        print(name + " submission failed. :(")
 
 
 def verify_uploads():
