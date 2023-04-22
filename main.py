@@ -235,7 +235,7 @@ def export_csv():
             # use the cursor as an iterable
             writer.writerow(row)
         conn.close()
-    print("Exported to export.csv\n")
+    print("Exported to export.csv\n/")
 
 
 if __name__ == '__main__':
@@ -245,7 +245,6 @@ if __name__ == '__main__':
     update_database(files)
 
     menu = '4'
-
     while menu != '0':
         menu = input("0 - exit \n"
                      "1 - upload newly added files \n"
@@ -259,13 +258,3 @@ if __name__ == '__main__':
         elif menu == '3':
             export_csv()
 
-    # compare_to_database()
-    # for file in files:
-    #    print(file.name)
-    #   print(file.path)
-    #  print(file.filesize)
-    # print(file.workshop_id)
-    # print()
-
-    # curl_test()
-    input("Press any key to exit...")
