@@ -157,9 +157,6 @@ def upload_file(file):
         else:
             print('Error uploading file')
 
-def upload_files(files):
-    load_dotenv()
-    url = "https://api.anonfiles.com/upload?token=" + os.getenv('API_KEY')
 
 def verify_uploads():
     conn = sqlite3.connect('data.db')
