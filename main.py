@@ -225,6 +225,18 @@ def verify_uploads():
     conn.commit()
     conn.close()
 
+def export_csv():
+    with open('export.csv', 'w+', newline='') as write_file:
+        writer = csv.writer(write_file)
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
+        # create a cursor object (which lets you address the table results individually)
+        for row in cursor.execute('SELECT * FROM files'):
+            # use the cursor as an iterable
+            writer.writerow(row)
+        conn.close()
+    print("Exported to export.csv\n")
+
 
 if __name__ == '__main__':
     load_dotenv()
@@ -245,7 +257,7 @@ if __name__ == '__main__':
         elif menu == '2':
             verify_uploads()
         elif menu == '3':
-            print(3)
+            export_csv()
 
     # compare_to_database()
     # for file in files:
