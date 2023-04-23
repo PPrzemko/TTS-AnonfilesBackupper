@@ -250,7 +250,7 @@ if __name__ == '__main__':
         menu = input("0 - exit \n"
                      "1 - upload newly added files \n"
                      "2 - verify if the uploaded files are still available \n"
-                     "3 - export to csv? \n"
+                     "3 - export to csv \n"
                      )
         if menu == '1':
             upload_files(files)
