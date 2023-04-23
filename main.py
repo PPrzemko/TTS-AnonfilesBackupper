@@ -105,11 +105,9 @@ def update_database(files):
 
 def upload_files(files):
     get_files_in_directory()
-    conn = sqlite3.connect('data.db')
-    cursor = conn.cursor()
-
-
     for file in files:
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
         workshopid = (file.workshop_id,)
         # Check if the dataset is already in the database
         select_query = "SELECT * FROM files WHERE workshopid=?"
@@ -126,10 +124,12 @@ def upload_files(files):
                 querydata = (fileid, fullurl, int(time.time()), file.workshop_id)
                 select_query = "UPDATE files SET anon_fileid = ?, anon_link= ?, anon_success = 1, anon_lastSeen=? WHERE workshopid = ?;"
                 cursor.execute(select_query, querydata)
+        cursor.close()
+        conn.commit()
+        conn.close()
 
-    cursor.close()
-    conn.commit()
-    conn.close()
+
+
 
 
 def upload_file(file):
