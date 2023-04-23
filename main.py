@@ -5,6 +5,9 @@ import requests
 from dotenv import load_dotenv
 import time
 import csv
+from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
+import requests
+from tqdm import tqdm
 
 class FileInfo:
     def __init__(self, path, name, size):
@@ -129,9 +132,6 @@ def upload_files(files):
         conn.close()
 
 
-
-
-
 def upload_file(file):
     # TODO: Maybe add Progressbar
     load_dotenv()
@@ -139,19 +139,21 @@ def upload_file(file):
     filename = os.getenv('MOD_PATH') + file.name
 
     with open(filename, "rb") as f:
-        response = requests.post(url, files={"file": f})
-        response_json = json.loads(response.text)
-        # TODO: debug print(response_json)
+        encoder = MultipartEncoder({"file": ("filename", f)})
+        progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
+        monitor = MultipartEncoderMonitor(encoder,lambda monitor: progress_bar.update(monitor.bytes_read - progress_bar.n))
+        headers = {"Content-Type": monitor.content_type}
+        response = requests.post(url, data=monitor, headers=headers)
         if response.ok:
+            progress_bar.close()
             # parse JSON response
             data = json.loads(response.content)
-
             # check if status is true
             if data['status']:
-                print('\033[92m' + file.name + ' uploaded successful' + '\033[0m')
+                time.sleep(0.5)
+                print('\033[92m' + file.name + ' uploaded successfully' + '\033[0m')
                 file_id = data['data']['file']['metadata']['id']
                 full_url = data['data']['file']['url']['full']
-                #print(os.getenv('COMMUNITY_CONTRIBUTION'))
                 if os.getenv('COMMUNITY_CONTRIBUTION') == 'true':
                     community_contribution(file.workshop_id, file.name, full_url)
 
@@ -249,7 +251,7 @@ if __name__ == '__main__':
         menu = input("0 - exit \n"
                      "1 - upload newly added files \n"
                      "2 - verify if the uploaded files are still available \n"
-                     "3 - export to excel/csv? \n"
+                     "3 - export to csv? \n"
                      )
         if menu == '1':
             upload_files(files)
