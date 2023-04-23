@@ -139,7 +139,7 @@ def upload_file(file):
     filename = os.getenv('MOD_PATH') + file.name
 
     with open(filename, "rb") as f:
-        encoder = MultipartEncoder({"file": ("filename", f)})
+        encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
         monitor = MultipartEncoderMonitor(encoder,lambda monitor: progress_bar.update(monitor.bytes_read - progress_bar.n))
         headers = {"Content-Type": monitor.content_type}
@@ -150,7 +150,6 @@ def upload_file(file):
             data = json.loads(response.content)
             # check if status is true
             if data['status']:
-                time.sleep(0.5)
                 print('\033[92m' + file.name + ' uploaded successfully' + '\033[0m')
                 file_id = data['data']['file']['metadata']['id']
                 full_url = data['data']['file']['url']['full']
