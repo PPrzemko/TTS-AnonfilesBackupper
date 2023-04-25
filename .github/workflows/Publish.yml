@@ -5,25 +5,28 @@ on:
 
 jobs:
   build:
-    runs-on:  windows-latest
+    runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
-    - name: Build Exe
-      run: |
-        pyinstaller --onefile main.py -n TTS-AnonfilesBackupper
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          ./dist/TTS-AnonfilesBackupper.exe
-        tag_name: latest
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller bumpversion
+      - name: Bump Version
+        run: |
+          bumpversion patch
+      - name: Build Exe
+        run: |
+          pyinstaller --onefile main.py -n TTS-AnonfilesBackupper
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./dist/TTS-AnonfilesBackupper.exe
+          tag_name: v$(cat VERSION)
+          token: ${{ secrets.GITHUB_TOKEN }}
