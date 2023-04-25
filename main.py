@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import json
-import requests
 from dotenv import load_dotenv
 import time
 import csv
