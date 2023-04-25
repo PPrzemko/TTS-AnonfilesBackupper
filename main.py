@@ -113,28 +113,32 @@ def update_database(files):
 
 def upload_files(files):
     get_files_in_directory()
-    for file in files:
-        conn = sqlite3.connect('data.db')
-        cursor = conn.cursor()
-        workshopid = (file.workshop_id,)
-        # Check if the dataset is already in the database
-        select_query = "SELECT * FROM files WHERE workshopid=?"
-        cursor.execute(select_query, workshopid)
 
-        filedata = cursor.fetchone()
-        if filedata is None:
-            print("Error file is not in dataset")
-        else:
-            file_success = filedata[5]
-            # print(f"File {file_name} with ID {file_workshopid} and size {file_size} is already in the dataset")
-            if file_success == '0':
-                fileid, fullurl = upload_file(file)
-                querydata = (fileid, fullurl, int(time.time()), file.workshop_id)
-                select_query = "UPDATE files SET anon_fileid = ?, anon_link= ?, anon_success = 1, anon_lastSeen=? WHERE workshopid = ?;"
-                cursor.execute(select_query, querydata)
-        cursor.close()
-        conn.commit()
-        conn.close()
+    try:
+        for file in files:
+            conn = sqlite3.connect('data.db')
+            cursor = conn.cursor()
+            workshopid = (file.workshop_id,)
+            # Check if the dataset is already in the database
+            select_query = "SELECT * FROM files WHERE workshopid=?"
+            cursor.execute(select_query, workshopid)
+
+            filedata = cursor.fetchone()
+            if filedata is None:
+                print("Error file is not in dataset")
+            else:
+                file_success = filedata[5]
+                # print(f"File {file_name} with ID {file_workshopid} and size {file_size} is already in the dataset")
+                if file_success == '0':
+                    fileid, fullurl = upload_file(file)
+                    querydata = (fileid, fullurl, int(time.time()), file.workshop_id)
+                    select_query = "UPDATE files SET anon_fileid = ?, anon_link= ?, anon_success = 1, anon_lastSeen=? WHERE workshopid = ?;"
+                    cursor.execute(select_query, querydata)
+            cursor.close()
+            conn.commit()
+            conn.close()
+    except KeyboardInterrupt:
+        print("\033[91m" + "\n \n Upload stopped by user.\n" + "\033[0m")
 
 
 def upload_file(file):
