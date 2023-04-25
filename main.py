@@ -146,7 +146,8 @@ def upload_file(file):
     with open(filename, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
-        monitor = MultipartEncoderMonitor(encoder,lambda monitor: progress_bar.update(monitor.bytes_read - progress_bar.n))
+        monitor = MultipartEncoderMonitor(encoder,
+                                          lambda monitor: progress_bar.update(monitor.bytes_read - progress_bar.n))
         headers = {"Content-Type": monitor.content_type}
         response = requests.post(url, data=monitor, headers=headers)
         if response.ok:
@@ -167,7 +168,8 @@ def upload_file(file):
         else:
             print('Error uploading file')
 
-def community_contribution(workshopid,name,anon_link):
+
+def community_contribution(workshopid, name, anon_link):
     form_url = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSfSh9WY6dzxueZ5yXSCXdzWNvm9gHosvhM6li-XBIUiAWPX4Q/formResponse"
     form_data = {
         f"entry.326097042": f"{workshopid}",
@@ -176,9 +178,9 @@ def community_contribution(workshopid,name,anon_link):
     }
     # Send the POST request to submit the form
     response = requests.post(form_url, data=form_data)
-    #TODO: Remove debug
-    #print(response.status_code)
-    #print(response.text)
+    # TODO: Remove debug
+    # print(response.status_code)
+    # print(response.text)
     if response.status_code == 200:
         print(name + " has been added to community list. Thank you!")
     else:
@@ -190,8 +192,8 @@ def verify_uploads():
     cursor = conn.cursor()
     select_query = "SELECT anon_fileid, name, workshopid FROM files WHERE anon_fileid IS NOT NULL;"
     cursor.execute(select_query)
-    successful=0
-    failed=0
+    successful = 0
+    failed = 0
 
     for row in cursor.fetchall():
         anon_fileid = row[0]
@@ -208,13 +210,13 @@ def verify_uploads():
                 querydata = (workshopid,)
                 select_query = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
                 cursor.execute(select_query, querydata)
-                failed=failed+1
+                failed = failed + 1
             elif status is True:
                 # update anon_success and last seen
                 querydata = (int(time.time()), workshopid)
                 select_query = "UPDATE files SET anon_success = 1, anon_lastSeen=? WHERE workshopid = ?;"
                 cursor.execute(select_query, querydata)
-                successful=successful+1
+                successful = successful + 1
 
         else:
             print('\033[31mError:', response.status_code, filename, '\033[0m' + '. Will be uploaded again next time')
@@ -231,6 +233,7 @@ def verify_uploads():
     conn.commit()
     conn.close()
 
+
 def export_csv():
     with open('export.csv', 'w+', newline='') as write_file:
         writer = csv.writer(write_file)
@@ -242,6 +245,7 @@ def export_csv():
             writer.writerow(row)
         conn.close()
     print("Exported to export.csv\n/")
+
 
 def check_config():
     # Check if the .config file exists
@@ -277,4 +281,3 @@ if __name__ == '__main__':
             verify_uploads()
         elif menu == '3':
             export_csv()
-
