@@ -238,9 +238,23 @@ def export_csv():
         conn.close()
     print("Exported to export.csv\n/")
 
+def check_config():
+    # Check if the .config file exists
+    if not os.path.exists('.config'):
+        default_env = {
+            'API_KEY': '',
+            'MOD_PATH': '.',
+            'COMMUNITY_CONTRIBUTION': 'false'
+        }
+        with open('.config', 'w') as f:
+            for key, value in default_env.items():
+                f.write(f"{key}={value}\n")
+
 
 if __name__ == '__main__':
-    load_dotenv()
+    check_config()
+    load_dotenv('.config')
+    print('Using path ->  ' + os.getenv('MOD_PATH'))
     create_database()
     files = get_files_in_directory()
     update_database(files)
