@@ -20,6 +20,7 @@ Additionally, there is a community contribution feature where all links are sent
 1. - upload newly added files 
 2. - verify if the uploaded files are still available 
 3. - export to csv 
+4. - enter setup config
 
 [TTS Mod Backup](https://www.nexusmods.com/tabletopsimulator/mods/263)
 
