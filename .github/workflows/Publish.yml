@@ -27,6 +27,5 @@ jobs:
       with:
         files: |
           ./dist/TTS-AnonfilesBackupper.exe
-        tag_name: Release
-
+        tag_name: latest
         token: ${{ secrets.GITHUB_TOKEN }}
