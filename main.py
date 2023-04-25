@@ -8,6 +8,11 @@ import csv
 from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 import requests
 from tqdm import tqdm
+import logging
+
+logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.DEBUG,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
+
 
 class FileInfo:
     def __init__(self, path, name, size):
@@ -136,7 +141,7 @@ def upload_file(file):
     # TODO: Maybe add Progressbar
     load_dotenv()
     url = "https://api.anonfiles.com/upload?token=" + os.getenv('API_KEY')
-    filename = os.getenv('MOD_PATH') + file.name
+    filename = os.getenv('MOD_PATH') + os.path.sep + file.name
 
     with open(filename, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
