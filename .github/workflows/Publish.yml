@@ -7,29 +7,51 @@ on:
 
 jobs:
   build:
-    runs-on:  windows-latest
+    runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
-    - name: Build Exe
-      run: |
-        pyinstaller --onefile main.py -n TTS-AnonfilesBackupper
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          ./dist/TTS-AnonfilesBackupper.exe
-        tag_name: v1.0.0
-        name: Release 1.0.0
-        body: This is the first release of the project
-        draft: false
-        prerelease: false
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      - name: Build Exe
+        run: |
+          pyinstaller --onefile main.py -n TTS-AnonfilesBackupper
+      - name: Create Release
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: releases } = await github.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const versionRegex = /^v(\d+\.\d+\.\d+)$/;
+            const latestRelease = releases.find((release) => {
+              const match = release.tag_name.match(versionRegex);
+              return match !== null;
+            });
+            const latestVersion = latestRelease
+              ? latestRelease.tag_name.match(versionRegex)[1]
+              : '0.0.0';
+            const nextVersion = latestVersion
+              .split('.')
+              .map((n) => parseInt(n, 10));
+            nextVersion[2]++;
+            const nextVersionTag = `v${nextVersion.join('.')}`;
+            const { data: release } = await github.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: nextVersionTag,
+              name: `Release ${nextVersionTag}`,
+              body: 'This is the next release of the project',
+              draft: false,
+              prerelease: false,
+            });
+            console.log(`Created release ${nextVersionTag}`);
+          shell: bash
