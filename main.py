@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import json
-import requests
 from dotenv import load_dotenv
 import time
 import csv
@@ -254,14 +253,18 @@ def export_csv():
 def check_config():
     # Check if the .config file exists
     if not os.path.exists('.config'):
-        default_env = {
-            'API_KEY': '',
-            'MOD_PATH': '.',
-            'COMMUNITY_CONTRIBUTION': 'false'
-        }
-        with open('.config', 'w') as f:
-            for key, value in default_env.items():
-                f.write(f"{key}={value}\n")
+
+        setup_Conf()
+
+def setup_Conf():
+    default_env = {
+        'API_KEY': input("Please enter the API key for Anonfiles: "),
+        'MOD_PATH': '.',
+        'COMMUNITY_CONTRIBUTION': input("Would you like to save your entries in the community spreadsheet? Please answer with \"true\" or \"false\".")
+    }
+    with open('.config', 'w') as f:
+        for key, value in default_env.items():
+            f.write(f"{key}={value}\n")
 
 
 if __name__ == '__main__':
@@ -272,12 +275,13 @@ if __name__ == '__main__':
     files = get_files_in_directory()
     update_database(files)
 
-    menu = '4'
+    menu = '69'
     while menu != '0':
         menu = input("0 - exit \n"
                      "1 - upload newly added files \n"
                      "2 - verify if the uploaded files are still available \n"
                      "3 - export to csv \n"
+                     "4 - enter setup config \n"
                      )
         if menu == '1':
             upload_files(files)
@@ -285,3 +289,5 @@ if __name__ == '__main__':
             verify_uploads()
         elif menu == '3':
             export_csv()
+        elif menu == '4':
+            setup_Conf()
