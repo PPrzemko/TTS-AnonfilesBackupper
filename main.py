@@ -8,6 +8,7 @@ from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 import requests
 from tqdm import tqdm
 import logging
+import hashlib
 
 logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.DEBUG,
                     format='%(asctime)s:%(levelname)s:%(message)s')
@@ -80,13 +81,13 @@ def create_database():
     conn.close()
 
 
-def update_database(files):
+def update_database(givenfiles):
     conn = sqlite3.connect('data.db')
     cursor = conn.cursor()
     alreadyInDb = 0
     newlyAdded = 0
 
-    for file in files:
+    for file in givenfiles:
         workshopid = (file.workshop_id,)
         # Check if the dataset is already in the database
         select_query = "SELECT * FROM files WHERE workshopid=?"
@@ -110,11 +111,11 @@ def update_database(files):
     conn.close()
 
 
-def upload_files(files):
+def upload_files(givenfiles):
     get_files_in_directory()
 
     try:
-        for file in files:
+        for file in givenfiles:
             conn = sqlite3.connect('data.db')
             cursor = conn.cursor()
             workshopid = (file.workshop_id,)
@@ -253,14 +254,15 @@ def export_csv():
 def check_config():
     # Check if the .config file exists
     if not os.path.exists('.config'):
+        setup_conf()
 
-        setup_Conf()
 
-def setup_Conf():
+def setup_conf():
     default_env = {
         'API_KEY': input("Please enter the API key for Anonfiles: "),
         'MOD_PATH': '.',
-        'COMMUNITY_CONTRIBUTION': input("Would you like to save your entries in the community spreadsheet? Please answer with \"true\" or \"false\".")
+        'COMMUNITY_CONTRIBUTION': input(
+            "Would you like to save your entries in the community spreadsheet? Please answer with \"true\" or \"false\".")
     }
     with open('.config', 'w') as f:
         for key, value in default_env.items():
@@ -290,4 +292,4 @@ if __name__ == '__main__':
         elif menu == '3':
             export_csv()
         elif menu == '4':
-            setup_Conf()
+            setup_conf()
