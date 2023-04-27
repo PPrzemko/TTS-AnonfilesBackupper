@@ -8,6 +8,7 @@ from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 import requests
 from tqdm import tqdm
 import logging
+import hashlib
 
 logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.DEBUG,
                     format='%(asctime)s:%(levelname)s:%(message)s')
@@ -18,6 +19,7 @@ class FileInfo:
         self.name = name
         self.filesize = size
         self.workshop_id = self.get_workshop_id(self.name)
+        self.hash = get_file_hash(self.name)
 
     def get_workshop_id(self, filename):
         id = 0
@@ -28,19 +30,26 @@ class FileInfo:
             id = int(tmpid)
         return id
 
+def get_file_hash(filename):
+    hash_object = hashlib.sha256()
+    filepath = os.getenv('MOD_PATH') + os.path.sep + filename
+    with open(filepath, 'rb') as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_object.update(chunk)
+    # Return the hex representation of the hash
+    return hash_object.hexdigest()
+
 
 def get_files_in_directory():
-    files = []
+    readfiles = []
     for entry in os.scandir(os.getenv('MOD_PATH')):
         if entry.is_file():
             file_name = entry.name
             file_path = os.path.join(entry.path, file_name)
             file_size = os.path.getsize(entry) / 1000000.0
             if file_name.endswith('.ttsmod'):
-                files.append(FileInfo(file_path, file_name, file_size))
-    return files
-
-
+                readfiles.append(FileInfo(file_path, file_name, file_size))
+    return readfiles
 def create_database():
     # Connect to the database
     conn = sqlite3.connect('data.db')
@@ -66,6 +75,7 @@ def create_database():
                 "name"	TEXT,
                 "filesize"	TEXT,
                 "workshopid"	TEXT,
+                "hash_value"    TEXT,
                 "anon_fileid"	TEXT,
                 "anon_link"	TEXT,
                 "anon_success"	TEXT DEFAULT 0,
@@ -80,41 +90,53 @@ def create_database():
     conn.close()
 
 
-def update_database(files):
+def update_database(givenfiles):
     conn = sqlite3.connect('data.db')
     cursor = conn.cursor()
     alreadyInDb = 0
+    updateFound = 0
     newlyAdded = 0
 
-    for file in files:
+    for file in givenfiles:
         workshopid = (file.workshop_id,)
         # Check if the dataset is already in the database
-        select_query = "SELECT * FROM files WHERE workshopid=?"
+        select_query = "SELECT hash_value FROM files WHERE workshopid=?"
         cursor.execute(select_query, workshopid)
-
-        if cursor.fetchone() is None:
+        rows =cursor.fetchone()
+        if rows is None:
             # If the dataset is not in the database, insert it
-            my_data = (file.name, file.filesize, file.workshop_id,)
-            insert_query = 'INSERT INTO files (name, filesize, workshopid) VALUES (?, ?, ?)'
+            my_data = (file.name, file.filesize, file.workshop_id, file.hash)
+            insert_query = 'INSERT INTO files (name, filesize, workshopid, hash_value) VALUES (?, ?, ?, ?)'
             cursor.execute(insert_query, my_data)
             conn.commit()
             newlyAdded = newlyAdded + 1
         else:
-            # If the dataset is already in the database, do nothing
-            # TODO: maybe implement version controll via filesize or hash
-            alreadyInDb = alreadyInDb + 1
+            dbhash_value=rows[0]
+            if dbhash_value == file.hash:
+                alreadyInDb = alreadyInDb + 1
+            elif dbhash_value != file.hash:
+                updateFound = updateFound +1
+                querydata2 = (get_file_hash(file.name), file.filesize, file.workshop_id)
+                select_query2 = "UPDATE files SET anon_success = 0, hash_value = ?, filesize = ? WHERE workshopid = ?;"
+                cursor.execute(select_query2, (querydata2[0], querydata2[1], querydata2[2]))
+                conn.commit()
+            else:
+                print("Hash could not be checked.")
+
 
     print("Added " + str(newlyAdded) + " new Datasets")
+    print("Updated " + str(updateFound) + " old Datasets")
     print("Found " + str(alreadyInDb) + " old Datasets")
+    conn.commit()
     cursor.close()
     conn.close()
 
 
-def upload_files(files):
+def upload_files(givenfiles):
     get_files_in_directory()
 
     try:
-        for file in files:
+        for file in givenfiles:
             conn = sqlite3.connect('data.db')
             cursor = conn.cursor()
             workshopid = (file.workshop_id,)
@@ -144,9 +166,9 @@ def upload_file(file):
     # TODO: Maybe add Progressbar
     load_dotenv()
     url = "https://api.anonfiles.com/upload?token=" + os.getenv('API_KEY')
-    filename = os.getenv('MOD_PATH') + os.path.sep + file.name
+    filepath = os.getenv('MOD_PATH') + os.path.sep + file.name
 
-    with open(filename, "rb") as f:
+    with open(filepath, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
         monitor = MultipartEncoderMonitor(encoder,
@@ -191,6 +213,7 @@ def community_contribution(workshopid, name, anon_link):
 
 
 def verify_uploads():
+    # TODO: need to commit more often?
     conn = sqlite3.connect('data.db')
     cursor = conn.cursor()
     select_query = "SELECT anon_fileid, name, workshopid FROM files WHERE anon_fileid IS NOT NULL;"
@@ -253,14 +276,15 @@ def export_csv():
 def check_config():
     # Check if the .config file exists
     if not os.path.exists('.config'):
+        setup_conf()
 
-        setup_Conf()
 
-def setup_Conf():
+def setup_conf():
     default_env = {
         'API_KEY': input("Please enter the API key for Anonfiles: "),
         'MOD_PATH': '.',
-        'COMMUNITY_CONTRIBUTION': input("Would you like to save your entries in the community spreadsheet? Please answer with \"true\" or \"false\".")
+        'COMMUNITY_CONTRIBUTION': input(
+            "Would you like to save your entries in the community spreadsheet? Please answer with \"true\" or \"false\".")
     }
     with open('.config', 'w') as f:
         for key, value in default_env.items():
@@ -290,4 +314,4 @@ if __name__ == '__main__':
         elif menu == '3':
             export_csv()
         elif menu == '4':
-            setup_Conf()
+            setup_conf()
