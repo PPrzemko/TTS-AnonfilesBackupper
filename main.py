@@ -145,9 +145,9 @@ def upload_file(file):
     # TODO: Maybe add Progressbar
     load_dotenv()
     url = "https://api.anonfiles.com/upload?token=" + os.getenv('API_KEY')
-    filename = os.getenv('MOD_PATH') + os.path.sep + file.name
+    filepath = os.getenv('MOD_PATH') + os.path.sep + file.name
 
-    with open(filename, "rb") as f:
+    with open(filepath, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
         monitor = MultipartEncoderMonitor(encoder,
