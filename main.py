@@ -213,7 +213,6 @@ def community_contribution(workshopid, name, anon_link):
 
 
 def verify_uploads():
-    # TODO: need to commit more often?
     conn = sqlite3.connect('data.db')
     cursor = conn.cursor()
     select_query = "SELECT anon_fileid, name, workshopid FROM files WHERE anon_fileid IS NOT NULL;"
@@ -237,12 +236,14 @@ def verify_uploads():
                 select_query = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
                 cursor.execute(select_query, querydata)
                 failed = failed + 1
+                conn.commit()
             elif status is True:
                 # update anon_success and last seen
                 querydata = (int(time.time()), workshopid)
                 select_query = "UPDATE files SET anon_success = 1, anon_lastSeen=? WHERE workshopid = ?;"
                 cursor.execute(select_query, querydata)
                 successful = successful + 1
+                conn.commit()
 
         else:
             print('\033[31mError:', response.status_code, filename, '\033[0m' + '. Will be uploaded again next time')
@@ -251,12 +252,12 @@ def verify_uploads():
             select_query = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
             cursor.execute(select_query, querydata)
             failed = failed + 1
+            conn.commit()
     print("\n")
     print('\033[31m' + str(failed) + ' links are broken and will be reuploaded next time.' + '\033[0m')
     print('\033[32m' + str(successful) + ' links have been successfully checked.' + '\033[0m')
-
-    cursor.close()
     conn.commit()
+    cursor.close()
     conn.close()
 
 
