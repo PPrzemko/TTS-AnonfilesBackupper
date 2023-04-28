@@ -141,14 +141,14 @@ def upload_files(givenfiles):
             cursor = conn.cursor()
             workshopid = (file.workshop_id,)
             # Check if the dataset is already in the database
-            select_query = "SELECT * FROM files WHERE workshopid=?"
+            select_query = "SELECT anon_success FROM files WHERE workshopid=?"
             cursor.execute(select_query, workshopid)
 
             filedata = cursor.fetchone()
             if filedata is None:
                 print("Error file is not in dataset")
             else:
-                file_success = filedata[5]
+                file_success = filedata[0]
                 # print(f"File {file_name} with ID {file_workshopid} and size {file_size} is already in the dataset")
                 if file_success == '0':
                     fileid, fullurl = upload_file(file)
