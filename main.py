@@ -185,7 +185,7 @@ def upload_file(file):
                 file_id = data['data']['file']['metadata']['id']
                 full_url = data['data']['file']['url']['full']
                 if os.getenv('COMMUNITY_CONTRIBUTION') == 'true':
-                    community_contribution(file.workshop_id, file.name, full_url)
+                    community_contribution(file.hash, file.workshop_id, file.name, full_url)
 
                 return file_id, full_url
             else:
@@ -194,9 +194,10 @@ def upload_file(file):
             print('Error uploading file')
 
 
-def community_contribution(workshopid, name, anon_link):
+def community_contribution(hash, workshopid, name, anon_link):
     form_url = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSfSh9WY6dzxueZ5yXSCXdzWNvm9gHosvhM6li-XBIUiAWPX4Q/formResponse"
     form_data = {
+        f"entry.1845967574": f"{hash}",
         f"entry.326097042": f"{workshopid}",
         f"entry.2142133025": f"{name}",
         f"entry.1514890636": f"{anon_link}",
