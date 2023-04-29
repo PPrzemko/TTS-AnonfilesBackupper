@@ -32,7 +32,7 @@ class FileInfo:
 
 def get_file_hash(filename):
     hash_object = hashlib.sha256()
-    filepath = os.getenv('MOD_PATH') + os.path.sep + filename
+    filepath = os.path.join(os.getenv('MOD_PATH'), filename)
     with open(filepath, 'rb') as f:
         for chunk in iter(lambda: f.read(4096), b""):
             hash_object.update(chunk)
@@ -41,15 +41,16 @@ def get_file_hash(filename):
 
 
 def get_files_in_directory():
-    readfiles = []
-    for entry in os.scandir(os.getenv('MOD_PATH')):
-        if entry.is_file():
-            file_name = entry.name
-            file_path = os.path.join(entry.path, file_name)
-            file_size = os.path.getsize(entry) / 1000000.0
-            if file_name.endswith('.ttsmod'):
-                readfiles.append(FileInfo(file_path, file_name, file_size))
-    return readfiles
+    files = []
+    total_files = sum(1 for entry in os.scandir(os.getenv('MOD_PATH')) if entry.is_file() and entry.name.endswith('.ttsmod'))
+    for entry in tqdm(os.scandir(os.getenv('MOD_PATH')), total=total_files, desc="Processing files"):
+        if entry.is_file() and entry.name.endswith('.ttsmod'):
+            file_path = os.path.join(entry.path, entry.name)
+            file_size = entry.stat().st_size / 1000000.0
+            files.append(FileInfo(file_path, entry.name, file_size))
+    return files
+
+
 def create_database():
     # Connect to the database
     conn = sqlite3.connect('data.db')
@@ -306,14 +307,17 @@ if __name__ == '__main__':
         menu = input("0 - exit \n"
                      "1 - upload newly added files \n"
                      "2 - verify if the uploaded files are still available \n"
-                     "3 - export to csv \n"
-                     "4 - enter setup config \n"
+                     "3 - Reprocess local files \n"
+                     "4 - export to csv \n"
+                     "5 - enter setup \n"
                      )
         if menu == '1':
             upload_files(files)
         elif menu == '2':
             verify_uploads()
         elif menu == '3':
-            export_csv()
+            get_files_in_directory()
         elif menu == '4':
+            export_csv()
+        elif menu == '5':
             setup_conf()

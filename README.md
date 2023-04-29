@@ -19,8 +19,9 @@ Additionally, there is a community contribution feature where all links are sent
 0. - exit 
 1. - upload newly added files 
 2. - verify if the uploaded files are still available 
-3. - export to csv 
-4. - enter setup config
+3. - Reprocess local files
+4. - export to csv 
+5. - enter setup config
 
 
 
