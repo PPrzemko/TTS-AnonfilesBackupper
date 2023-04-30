@@ -42,8 +42,9 @@ def get_file_hash(filename):
 
 def get_files_in_directory():
     files = []
-    total_files = sum(1 for entry in os.scandir(os.getenv('MOD_PATH')) if entry.is_file() and entry.name.endswith('.ttsmod'))
-    for entry in tqdm(os.scandir(os.getenv('MOD_PATH')), total=total_files, desc="Processing files"):
+    mod_path = os.getenv('MOD_PATH')
+    total_files = sum(1 for entry in os.scandir(mod_path) if entry.is_file() and entry.name.endswith('.ttsmod'))
+    for entry in tqdm(os.scandir(mod_path), total=total_files, desc="Processing files"):
         if entry.is_file() and entry.name.endswith('.ttsmod'):
             file_path = os.path.join(entry.path, entry.name)
             file_size = entry.stat().st_size / 1000000.0
