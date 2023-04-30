@@ -93,12 +93,12 @@ def create_database():
 
 
 def update_database(givenfiles):
+    print("Updating Database... \n")
     conn = sqlite3.connect('data.db')
     cursor = conn.cursor()
     alreadyInDb = 0
     updateFound = 0
     newlyAdded = 0
-
     for file in givenfiles:
         workshopid = (file.workshop_id,)
         # Check if the dataset is already in the database
@@ -315,7 +315,8 @@ if __name__ == '__main__':
         elif menu == '2':
             verify_uploads()
         elif menu == '3':
-            get_files_in_directory()
+            files=get_files_in_directory()
+            update_database(files)
         elif menu == '4':
             export_csv()
         elif menu == '5':
