@@ -134,8 +134,6 @@ def update_database(givenfiles):
 
 
 def upload_files(givenfiles):
-    get_files_in_directory()
-
     try:
         for file in givenfiles:
             conn = sqlite3.connect('data.db')
