@@ -13,6 +13,7 @@ Additionally, there is a community contribution feature where all links are sent
 3. Enter your API key, which you can obtain from the [AnonFiles](https://anonfiles.com/docs/api) website after creating an account.
 4. Choose if you want to contribute your uploads. (true,false)
 5. Optionally, you can modify the "api-key", "path" and "community contribution" settings in the configuration (.config) file.
+The default path is . this is the same path as the .exe file. If you want to change it use this format. MOD_PATH="V:/TTSModBackups"
 
 ## Usage
 
