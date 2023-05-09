@@ -40,6 +40,8 @@ def get_file_hash(filename):
     return hash_object.hexdigest()
 
 
+
+
 def get_files_in_directory():
     files = []
     mod_path = os.getenv('MOD_PATH')
@@ -163,11 +165,10 @@ def upload_files(givenfiles):
 
 
 def upload_file(file):
-    # TODO: Maybe add Progressbar
     load_dotenv()
     url = "https://api.anonfiles.com/upload?token=" + os.getenv('API_KEY')
     filepath = os.getenv('MOD_PATH') + os.path.sep + file.name
-
+    print("<----Uploading: " + file.name + "---->")
     with open(filepath, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
@@ -181,7 +182,7 @@ def upload_file(file):
             data = json.loads(response.content)
             # check if status is true
             if data['status']:
-                print('\033[92m' + file.name + ' uploaded successfully' + '\033[0m')
+                print('\033[92m' + ' uploaded successfully' + '\033[0m')
                 file_id = data['data']['file']['metadata']['id']
                 full_url = data['data']['file']['url']['full']
                 if os.getenv('COMMUNITY_CONTRIBUTION') == 'true':
@@ -208,12 +209,13 @@ def community_contribution(hash, workshopid, name, anon_link):
     # print(response.status_code)
     # print(response.text)
     if response.status_code == 200:
-        print(name + " has been added to community list. Thank you!")
+        print("Has been added to community list. Thank you!")
     else:
-        print(name + " submission failed. :(")
+        print("Submission failed. :(")
 
 
 def verify_uploads():
+    print("This can take a while...")
     conn = sqlite3.connect('data.db')
     cursor = conn.cursor()
     select_query = "SELECT anon_fileid, name, workshopid FROM files WHERE anon_fileid IS NOT NULL;"
@@ -221,7 +223,8 @@ def verify_uploads():
     successful = 0
     failed = 0
 
-    for row in cursor.fetchall():
+    # Add a progress bar using the tqdm library
+    for row in tqdm(cursor.fetchall(), desc="Verifying uploads"):
         anon_fileid = row[0]
         filename = row[1]
         workshopid = row[2]
@@ -254,6 +257,7 @@ def verify_uploads():
             cursor.execute(select_query, querydata)
             failed = failed + 1
             conn.commit()
+
     print("\n")
     print('\033[31m' + str(failed) + ' links are broken and will be reuploaded next time.' + '\033[0m')
     print('\033[32m' + str(successful) + ' links have been successfully checked.' + '\033[0m')
