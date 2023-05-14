@@ -8,37 +8,7 @@ from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 import requests
 from tqdm import tqdm
 import logging
-import hashlib
-
-logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.DEBUG,
-                    format='%(asctime)s:%(levelname)s:%(message)s')
-
-
-class FileInfo:
-    def __init__(self, path, name, size):
-        self.name = name
-        self.filesize = size
-        self.workshop_id = self.get_workshop_id(self.name)
-        self.hash = get_file_hash(self.name)
-
-    def get_workshop_id(self, filename):
-        id = 0
-        start = filename.rfind('(')
-        end = filename.rfind(')')
-        if start != -1 and end != -1 and end > start:
-            tmpid = filename[start + 1: end]
-            id = int(tmpid)
-        return id
-
-def get_file_hash(filename):
-    hash_object = hashlib.sha256()
-    filepath = os.path.join(os.getenv('MOD_PATH'), filename)
-    with open(filepath, 'rb') as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_object.update(chunk)
-    # Return the hex representation of the hash
-    return hash_object.hexdigest()
-
+from file import FileInfo
 
 
 
