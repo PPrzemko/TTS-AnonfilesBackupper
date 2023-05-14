@@ -20,7 +20,6 @@ def get_files_in_directory():
     total_files = sum(1 for entry in os.scandir(mod_path) if entry.is_file() and entry.name.endswith('.ttsmod'))
     for entry in tqdm(os.scandir(mod_path), total=total_files, desc="Processing files"):
         if entry.is_file() and entry.name.endswith('.ttsmod'):
-            file_path = os.path.join(entry.path, entry.name)
             file_size = entry.stat().st_size / 1000000.0
             file_info = FileInfo(entry.path, entry.name, file_size)
             if file_info.filecount != -1:
