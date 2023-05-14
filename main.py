@@ -149,8 +149,7 @@ def upload_file(file):
     with open(filepath, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
-        monitor = MultipartEncoderMonitor(encoder,
-                                          lambda monitor: progress_bar.update(monitor.bytes_read - progress_bar.n))
+        monitor = MultipartEncoderMonitor(encoder,lambda monitor: progress_bar.update(monitor.bytes_read - progress_bar.n))
         headers = {"Content-Type": monitor.content_type}
         response = requests.post(url, data=monitor, headers=headers)
         if response.ok:
