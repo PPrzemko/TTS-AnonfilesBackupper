@@ -52,7 +52,6 @@ def create_database():
                 "name"	TEXT,
                 "filesize"	TEXT,
                 "workshopid"	TEXT,
-                "hash_value"    TEXT,
                 "filecount"    TEXT,
                 "anon_fileid"	TEXT,
                 "anon_link"	TEXT,
@@ -78,7 +77,6 @@ def update_database(givenfiles):
     for file in givenfiles:
         workshopid = (file.workshop_id,)
         # Check if the dataset is already in the database
-        select_query = "SELECT hash_value FROM files WHERE workshopid=?"
         select_query = "SELECT filecount FROM files WHERE workshopid=?"
         cursor.execute(select_query, workshopid)
         rows =cursor.fetchone()
@@ -90,17 +88,21 @@ def update_database(givenfiles):
             conn.commit()
             newlyAdded = newlyAdded + 1
         else:
-            dbhash_value=rows[0]
-            if dbhash_value == file.hash:
+            dbfilecount = rows[0]
+            if dbfilecount == file.filecount:
                 alreadyInDb = alreadyInDb + 1
-            elif dbhash_value != file.hash:
-                updateFound = updateFound +1
-                querydata2 = (get_file_hash(file.name), file.filesize, file.workshop_id)
-                select_query2 = "UPDATE files SET anon_success = 0, hash_value = ?, filesize = ? WHERE workshopid = ?;"
+            elif dbfilecount < file.filecount:
+                updateFound = updateFound + 1
+                querydata2 = (file.filecount, file.filesize, file.workshop_id)
+                select_query2 = "UPDATE files SET anon_success = 0, filecount = ?, filesize = ? WHERE workshopid = ?;"
                 cursor.execute(select_query2, (querydata2[0], querydata2[1], querydata2[2]))
                 conn.commit()
+            elif dbfilecount > file.filecount:
+                print(file.name + "File has fewer files than recorded filecount in Database. Ignoring...")
+                logging.info("Info: File has fewer files than recorded filecount in Database. " + '"' + file.name + '"')
             else:
-                print("Hash could not be checked.")
+                print("Filecount could not be checked.")
+
 
 
     print("Added " + str(newlyAdded) + " new Datasets")
