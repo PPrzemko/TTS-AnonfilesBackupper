@@ -20,7 +20,9 @@ def get_files_in_directory():
         if entry.is_file() and entry.name.endswith('.ttsmod'):
             file_path = os.path.join(entry.path, entry.name)
             file_size = entry.stat().st_size / 1000000.0
-            files.append(FileInfo(file_path, entry.name, file_size))
+            file_info = FileInfo(entry.path, entry.name, file_size)
+            if file_info.filecount != -1:
+                files.append(file_info)
     return files
 
 
