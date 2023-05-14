@@ -162,7 +162,7 @@ def upload_file(file):
                 file_id = data['data']['file']['metadata']['id']
                 full_url = data['data']['file']['url']['full']
                 if os.getenv('COMMUNITY_CONTRIBUTION') == 'true':
-                    community_contribution(file.hash, file.workshop_id, file.name, full_url)
+                    community_contribution(file.filecount, file.workshop_id, file.name, full_url)
 
                 return file_id, full_url
             else:
