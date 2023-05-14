@@ -53,6 +53,7 @@ def create_database():
                 "filesize"	TEXT,
                 "workshopid"	TEXT,
                 "hash_value"    TEXT,
+                "filecount"    TEXT,
                 "anon_fileid"	TEXT,
                 "anon_link"	TEXT,
                 "anon_success"	TEXT DEFAULT 0,
@@ -78,12 +79,13 @@ def update_database(givenfiles):
         workshopid = (file.workshop_id,)
         # Check if the dataset is already in the database
         select_query = "SELECT hash_value FROM files WHERE workshopid=?"
+        select_query = "SELECT filecount FROM files WHERE workshopid=?"
         cursor.execute(select_query, workshopid)
         rows =cursor.fetchone()
         if rows is None:
             # If the dataset is not in the database, insert it
-            my_data = (file.name, file.filesize, file.workshop_id, file.hash)
-            insert_query = 'INSERT INTO files (name, filesize, workshopid, hash_value) VALUES (?, ?, ?, ?)'
+            my_data = (file.name, file.filesize, file.workshop_id, file.filecount)
+            insert_query = 'INSERT INTO files (name, filesize, workshopid, filecount) VALUES (?, ?, ?, ?)'
             cursor.execute(insert_query, my_data)
             conn.commit()
             newlyAdded = newlyAdded + 1
@@ -168,10 +170,10 @@ def upload_file(file):
             print('Error uploading file')
 
 
-def community_contribution(hash, workshopid, name, anon_link):
+def community_contribution(filecount, workshopid, name, anon_link):
     form_url = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSfSh9WY6dzxueZ5yXSCXdzWNvm9gHosvhM6li-XBIUiAWPX4Q/formResponse"
     form_data = {
-        f"entry.1845967574": f"{hash}",
+        f"entry.1845967574": f"{filecount}",
         f"entry.326097042": f"{workshopid}",
         f"entry.2142133025": f"{name}",
         f"entry.1514890636": f"{anon_link}",
