@@ -166,7 +166,7 @@ def upload_file(file):
             data = json.loads(response.content)
             # check if status is true
             if data['status']:
-                print('\033[92m' + ' uploaded successfully' + '\033[0m')
+                print('\033[92m' + 'Uploaded successfully' + '\033[0m')
                 file_id = data['data']['file']['metadata']['id']
                 full_url = data['data']['file']['url']['full']
                 if os.getenv('COMMUNITY_CONTRIBUTION') == 'true':
@@ -199,7 +199,6 @@ def community_contribution(filecount, workshopid, name, anon_link):
 
 
 def verify_uploads():
-    print("This can take a while...")
     conn = sqlite3.connect('data.db')
     cursor = conn.cursor()
     select_query = "SELECT anon_fileid, name, workshopid FROM files WHERE anon_fileid IS NOT NULL;"
@@ -244,6 +243,7 @@ def verify_uploads():
             conn.commit()
 
     print("\n")
+
     print('\033[31m' + str(failed) + ' links are broken and will be reuploaded next time.' + '\033[0m')
     print('\033[32m' + str(successful) + ' links have been successfully checked.' + '\033[0m')
     conn.commit()
@@ -295,13 +295,15 @@ def main():
         menu = input("0 - exit \n"
                      "1 - upload newly added files \n"
                      "2 - verify if the uploaded files are still available \n"
-                     "3 - Reprocess local files \n"
+                     "3 - reprocess local files \n"
                      "4 - export to csv \n"
                      "5 - enter setup \n"
                      )
         if menu == '1':
             upload_files(files)
         elif menu == '2':
+            print("This can take a while...")
+            time.sleep(0.1)
             verify_uploads()
         elif menu == '3':
             files = get_files_in_directory()
