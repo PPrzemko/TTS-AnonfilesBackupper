@@ -8,39 +8,11 @@ from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 import requests
 from tqdm import tqdm
 import logging
-import hashlib
-
-logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.DEBUG,
-                    format='%(asctime)s:%(levelname)s:%(message)s')
+from file import FileInfo
 
 
-class FileInfo:
-    def __init__(self, path, name, size):
-        self.name = name
-        self.filesize = size
-        self.workshop_id = self.get_workshop_id(self.name)
-        self.hash = get_file_hash(self.name)
-
-    def get_workshop_id(self, filename):
-        id = 0
-        start = filename.rfind('(')
-        end = filename.rfind(')')
-        if start != -1 and end != -1 and end > start:
-            tmpid = filename[start + 1: end]
-            id = int(tmpid)
-        return id
-
-def get_file_hash(filename):
-    hash_object = hashlib.sha256()
-    filepath = os.path.join(os.getenv('MOD_PATH'), filename)
-    with open(filepath, 'rb') as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_object.update(chunk)
-    # Return the hex representation of the hash
-    return hash_object.hexdigest()
-
-
-
+logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.WARNING,
+                    format='%(asctime)s:%(levelname)s:%(message)s', filemode='a')
 
 def get_files_in_directory():
     files = []
@@ -48,50 +20,57 @@ def get_files_in_directory():
     total_files = sum(1 for entry in os.scandir(mod_path) if entry.is_file() and entry.name.endswith('.ttsmod'))
     for entry in tqdm(os.scandir(mod_path), total=total_files, desc="Processing files"):
         if entry.is_file() and entry.name.endswith('.ttsmod'):
-            file_path = os.path.join(entry.path, entry.name)
             file_size = entry.stat().st_size / 1000000.0
-            files.append(FileInfo(file_path, entry.name, file_size))
+            file_info = FileInfo(entry.path, entry.name, file_size)
+            # Filecount -1 means zip can not be opened. So probably corrupted
+            if file_info.filecount != -1:
+                files.append(file_info)
     return files
 
 
 def create_database():
-    # Connect to the database
-    conn = sqlite3.connect('data.db')
-    if conn:
-        print("Database connection successful")
-    else:
-        print("Connection could not be established (big trouble)\n")
-        return
-    cursor = conn.cursor()
-    # Define the table to check for
-    table_name = 'files'
-    # Execute a query to check if the table exists
-    query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
-    cursor.execute(query)
+    try:
+        # Connect to the database
+        conn = sqlite3.connect('data.db')
+        if conn:
+            print("Database connection successful")
+        else:
+            print("Connection could not be established (big trouble)\n")
+            logging.error("Connection could not be established (big trouble)")
+            return
+        cursor = conn.cursor()
+        # Define the table to check for
+        table_name = 'files'
+        # Execute a query to check if the table exists
+        query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
+        cursor.execute(query)
 
-    # Check if the table exists in the database
-    if cursor.fetchone():
-        print('Use existing database')
-    else:
-        print('Table creation...')
-        cursor.execute('''
-                CREATE TABLE "files" (
-                "name"	TEXT,
-                "filesize"	TEXT,
-                "workshopid"	TEXT,
-                "hash_value"    TEXT,
-                "anon_fileid"	TEXT,
-                "anon_link"	TEXT,
-                "anon_success"	TEXT DEFAULT 0,
-                "anon_lastSeen"	TEXT,
-                UNIQUE("anon_fileid"),
-                UNIQUE("workshopid"),
-                PRIMARY KEY("workshopid")
-                )''')
+        # Check if the table exists in the database
+        if cursor.fetchone():
+            print('Use existing database')
+        else:
+            print('Table creation...')
+            cursor.execute('''
+                        CREATE TABLE "files" (
+                        "name"	TEXT,
+                        "filesize"	TEXT,
+                        "workshopid"	TEXT,
+                        "filecount"    TEXT,
+                        "anon_fileid"	TEXT,
+                        "anon_link"	TEXT,
+                        "anon_success"	TEXT DEFAULT 0,
+                        "anon_lastSeen"	TEXT,
+                        UNIQUE("anon_fileid"),
+                        UNIQUE("workshopid"),
+                        PRIMARY KEY("workshopid")
+                        )''')
 
-    # Close and commit the database connection
-    conn.commit()
-    conn.close()
+        # Close and commit the database connection
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("An error occurred:", str(e))
+        logging.info("Error: Unable to open the zip file. " + '"' + e + '"')
 
 
 def update_database(givenfiles):
@@ -101,34 +80,39 @@ def update_database(givenfiles):
     alreadyInDb = 0
     updateFound = 0
     newlyAdded = 0
+
     for file in givenfiles:
         workshopid = (file.workshop_id,)
         # Check if the dataset is already in the database
-        select_query = "SELECT hash_value FROM files WHERE workshopid=?"
+        select_query = "SELECT filecount FROM files WHERE workshopid=?"
         cursor.execute(select_query, workshopid)
-        rows =cursor.fetchone()
+        rows = cursor.fetchone()
         if rows is None:
             # If the dataset is not in the database, insert it
-            my_data = (file.name, file.filesize, file.workshop_id, file.hash)
-            insert_query = 'INSERT INTO files (name, filesize, workshopid, hash_value) VALUES (?, ?, ?, ?)'
+            my_data = (file.name, file.filesize, file.workshop_id, file.filecount)
+            insert_query = 'INSERT INTO files (name, filesize, workshopid, filecount) VALUES (?, ?, ?, ?)'
             cursor.execute(insert_query, my_data)
             conn.commit()
             newlyAdded = newlyAdded + 1
         else:
-            dbhash_value=rows[0]
-            if dbhash_value == file.hash:
+            dbfilecount = int(rows[0])
+            # TODO: Remove Debug
+            # print(str(dbfilecount) + " compared to " + str(file.filecount))
+            if dbfilecount == file.filecount:
                 alreadyInDb = alreadyInDb + 1
-            elif dbhash_value != file.hash:
-                updateFound = updateFound +1
-                querydata2 = (get_file_hash(file.name), file.filesize, file.workshop_id)
-                select_query2 = "UPDATE files SET anon_success = 0, hash_value = ?, filesize = ? WHERE workshopid = ?;"
+            elif dbfilecount < file.filecount:
+                updateFound = updateFound + 1
+                querydata2 = (file.filecount, file.filesize, file.workshop_id)
+                select_query2 = "UPDATE files SET anon_success = 0, filecount = ?, filesize = ? WHERE workshopid = ?;"
                 cursor.execute(select_query2, (querydata2[0], querydata2[1], querydata2[2]))
                 conn.commit()
+            elif dbfilecount > file.filecount:
+                print(file.name + "Info: File has fewer files than recorded filecount in Database. Ignoring...")
+                logging.info("File has fewer files than recorded filecount in Database. " + '"' + file.name + '"')
             else:
-                print("Hash could not be checked.")
+                print("Filecount could not be checked.")
 
-
-    print("Added " + str(newlyAdded) + " new Datasets")
+    print("\nAdded " + str(newlyAdded) + " new Datasets")
     print("Updated " + str(updateFound) + " old Datasets")
     print("Found " + str(alreadyInDb) + " old Datasets")
     conn.commit()
@@ -148,7 +132,8 @@ def upload_files(givenfiles):
 
             filedata = cursor.fetchone()
             if filedata is None:
-                print("Error file is not in dataset")
+                print(file.name + "is not in found in Database.")
+                logging.warning(file.name + "is not in found in Database.")
             else:
                 file_success = filedata[0]
                 # print(f"File {file_name} with ID {file_workshopid} and size {file_size} is already in the dataset")
@@ -172,50 +157,48 @@ def upload_file(file):
     with open(filepath, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
-        monitor = MultipartEncoderMonitor(encoder,
-                                          lambda monitor: progress_bar.update(monitor.bytes_read - progress_bar.n))
-        headers = {"Content-Type": monitor.content_type}
-        response = requests.post(url, data=monitor, headers=headers)
+        monitor2 = MultipartEncoderMonitor(encoder,lambda monitor2: progress_bar.update(monitor2.bytes_read - progress_bar.n))
+        headers = {"Content-Type": monitor2.content_type}
+        response = requests.post(url, data=monitor2, headers=headers)
         if response.ok:
             progress_bar.close()
             # parse JSON response
             data = json.loads(response.content)
             # check if status is true
             if data['status']:
-                print('\033[92m' + ' uploaded successfully' + '\033[0m')
+                print('\033[92m' + 'Uploaded successfully' + '\033[0m')
                 file_id = data['data']['file']['metadata']['id']
                 full_url = data['data']['file']['url']['full']
                 if os.getenv('COMMUNITY_CONTRIBUTION') == 'true':
-                    community_contribution(file.hash, file.workshop_id, file.name, full_url)
+                    community_contribution(file.filecount, file.workshop_id, file.name, full_url)
 
                 return file_id, full_url
             else:
                 print('Upload failed. ' + data['error']['message'])
+                logging.warning('Upload failed. ' + data['error']['message'])
         else:
             print('Error uploading file')
+            logging.warning('Upload failed. Response was not Ok.' + file.name + str(response.status_code) + response.text)
 
 
-def community_contribution(hash, workshopid, name, anon_link):
+def community_contribution(filecount, workshopid, name, anon_link):
     form_url = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSfSh9WY6dzxueZ5yXSCXdzWNvm9gHosvhM6li-XBIUiAWPX4Q/formResponse"
     form_data = {
-        f"entry.1845967574": f"{hash}",
+        f"entry.1845967574": f"{filecount}",
         f"entry.326097042": f"{workshopid}",
         f"entry.2142133025": f"{name}",
         f"entry.1514890636": f"{anon_link}",
     }
     # Send the POST request to submit the form
     response = requests.post(form_url, data=form_data)
-    # TODO: Remove debug
-    # print(response.status_code)
-    # print(response.text)
     if response.status_code == 200:
         print("Has been added to community list. Thank you!")
     else:
         print("Submission failed. :(")
+        logging.warning('Community Submission failed.' + str(response.status_code) + response.text)
 
 
 def verify_uploads():
-    print("This can take a while...")
     conn = sqlite3.connect('data.db')
     cursor = conn.cursor()
     select_query = "SELECT anon_fileid, name, workshopid FROM files WHERE anon_fileid IS NOT NULL;"
@@ -236,6 +219,7 @@ def verify_uploads():
             if status is False:
                 # update anon_success to 0
                 print('\033[31mError getting file status\033[0m' + filename)
+                logging.warning('Error getting file status' + str(response.status_code) + response.text)
                 querydata = (workshopid,)
                 select_query = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
                 cursor.execute(select_query, querydata)
@@ -259,6 +243,7 @@ def verify_uploads():
             conn.commit()
 
     print("\n")
+
     print('\033[31m' + str(failed) + ' links are broken and will be reuploaded next time.' + '\033[0m')
     print('\033[32m' + str(successful) + ' links have been successfully checked.' + '\033[0m')
     conn.commit()
@@ -297,7 +282,7 @@ def setup_conf():
             f.write(f"{key}={value}\n")
 
 
-if __name__ == '__main__':
+def main():
     check_config()
     load_dotenv('.config')
     print('Using path ->  ' + os.getenv('MOD_PATH'))
@@ -310,18 +295,27 @@ if __name__ == '__main__':
         menu = input("0 - exit \n"
                      "1 - upload newly added files \n"
                      "2 - verify if the uploaded files are still available \n"
-                     "3 - Reprocess local files \n"
+                     "3 - reprocess local files \n"
                      "4 - export to csv \n"
                      "5 - enter setup \n"
                      )
         if menu == '1':
             upload_files(files)
         elif menu == '2':
+            print("This can take a while...")
+            time.sleep(0.1)
             verify_uploads()
         elif menu == '3':
-            files=get_files_in_directory()
+            files = get_files_in_directory()
             update_database(files)
         elif menu == '4':
             export_csv()
         elif menu == '5':
             setup_conf()
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        logging.exception("main crashed. Error: %s", e)
