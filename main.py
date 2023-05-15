@@ -29,7 +29,6 @@ def get_files_in_directory():
 
 
 def create_database():
-    # Connect to the database
     conn = sqlite3.connect('data.db')
     if conn:
         print("Database connection successful")
@@ -103,8 +102,6 @@ def update_database(givenfiles):
                 cursor.execute(select_query2, (querydata2[0], querydata2[1], querydata2[2]))
                 conn.commit()
             elif dbfilecount > file.filecount:
-                print(file.name + "File has fewer files than recorded filecount in Database. Ignoring...")
-                logging.info("Info: File has fewer files than recorded filecount in Database. " + '"' + file.name + '"')
                 print(file.name + "Info: File has fewer files than recorded filecount in Database. Ignoring...")
                 logging.info("File has fewer files than recorded filecount in Database. " + '"' + file.name + '"')
             else:
@@ -130,6 +127,7 @@ def upload_files(givenfiles):
 
             filedata = cursor.fetchone()
             if filedata is None:
+                print(file.name + "is not in found in Database.")
                 logging.warning(file.name + "is not in found in Database.")
             else:
                 file_success = filedata[0]
