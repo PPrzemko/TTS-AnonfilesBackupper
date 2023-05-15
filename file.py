@@ -27,11 +27,10 @@ class FileInfo:
                 file_list = myzip.namelist()
                 # Count the number of files (excluding directories)
                 file_count = len([f for f in file_list if not myzip.getinfo(f).is_dir()])
-                print (file_count)
             return file_count
         except zipfile.BadZipFile:
             print("Error: Unable to open the zip file. " + '"' + self.name + '"')
-            logging.warning("Error: Unable to open the zip file. " + '"' + self.name + '"')
+            logging.info("Error: Unable to open the zip file. " + '"' + self.name + '"')
             return -1
 
 

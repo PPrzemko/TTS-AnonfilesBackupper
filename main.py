@@ -22,6 +22,7 @@ def get_files_in_directory():
         if entry.is_file() and entry.name.endswith('.ttsmod'):
             file_size = entry.stat().st_size / 1000000.0
             file_info = FileInfo(entry.path, entry.name, file_size)
+            # Filecount -1 means zip can not be opened. So probably corrupted
             if file_info.filecount != -1:
                 files.append(file_info)
     return files
@@ -74,12 +75,14 @@ def update_database(givenfiles):
     alreadyInDb = 0
     updateFound = 0
     newlyAdded = 0
+
     for file in givenfiles:
         workshopid = (file.workshop_id,)
         # Check if the dataset is already in the database
         select_query = "SELECT filecount FROM files WHERE workshopid=?"
         cursor.execute(select_query, workshopid)
         rows =cursor.fetchone()
+        rows = cursor.fetchone()
         if rows is None:
             # If the dataset is not in the database, insert it
             my_data = (file.name, file.filesize, file.workshop_id, file.filecount)
@@ -88,7 +91,9 @@ def update_database(givenfiles):
             conn.commit()
             newlyAdded = newlyAdded + 1
         else:
-            dbfilecount = rows[0]
+            dbfilecount = int(rows[0])
+            # TODO: Remove Debug
+            # print(str(dbfilecount) + " compared to " + str(file.filecount))
             if dbfilecount == file.filecount:
                 alreadyInDb = alreadyInDb + 1
             elif dbfilecount < file.filecount:
@@ -100,12 +105,12 @@ def update_database(givenfiles):
             elif dbfilecount > file.filecount:
                 print(file.name + "File has fewer files than recorded filecount in Database. Ignoring...")
                 logging.info("Info: File has fewer files than recorded filecount in Database. " + '"' + file.name + '"')
+                print(file.name + "Info: File has fewer files than recorded filecount in Database. Ignoring...")
+                logging.info("File has fewer files than recorded filecount in Database. " + '"' + file.name + '"')
             else:
                 print("Filecount could not be checked.")
 
-
-
-    print("Added " + str(newlyAdded) + " new Datasets")
+    print("\nAdded " + str(newlyAdded) + " new Datasets")
     print("Updated " + str(updateFound) + " old Datasets")
     print("Found " + str(alreadyInDb) + " old Datasets")
     conn.commit()
@@ -125,7 +130,7 @@ def upload_files(givenfiles):
 
             filedata = cursor.fetchone()
             if filedata is None:
-                print("Error file is not in dataset")
+                logging.warning(file.name + "is not in found in Database.")
             else:
                 file_success = filedata[0]
                 # print(f"File {file_name} with ID {file_workshopid} and size {file_size} is already in the dataset")
@@ -149,9 +154,9 @@ def upload_file(file):
     with open(filepath, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
-        monitor = MultipartEncoderMonitor(encoder,lambda monitor: progress_bar.update(monitor.bytes_read - progress_bar.n))
-        headers = {"Content-Type": monitor.content_type}
-        response = requests.post(url, data=monitor, headers=headers)
+        monitor2 = MultipartEncoderMonitor(encoder,lambda monitor2: progress_bar.update(monitor2.bytes_read - progress_bar.n))
+        headers = {"Content-Type": monitor2.content_type}
+        response = requests.post(url, data=monitor2, headers=headers)
         if response.ok:
             progress_bar.close()
             # parse JSON response
@@ -167,8 +172,10 @@ def upload_file(file):
                 return file_id, full_url
             else:
                 print('Upload failed. ' + data['error']['message'])
+                logging.warning('Upload failed. ' + data['error']['message'])
         else:
             print('Error uploading file')
+            logging.warning('Upload failed. Response was not Ok.' + file.name + str(response.status_code) + response.text)
 
 
 def community_contribution(filecount, workshopid, name, anon_link):
@@ -181,13 +188,11 @@ def community_contribution(filecount, workshopid, name, anon_link):
     }
     # Send the POST request to submit the form
     response = requests.post(form_url, data=form_data)
-    # TODO: Remove debug
-    # print(response.status_code)
-    # print(response.text)
     if response.status_code == 200:
         print("Has been added to community list. Thank you!")
     else:
         print("Submission failed. :(")
+        logging.warning('Community Submission failed.' + str(response.status_code) + response.text)
 
 
 def verify_uploads():
@@ -212,6 +217,7 @@ def verify_uploads():
             if status is False:
                 # update anon_success to 0
                 print('\033[31mError getting file status\033[0m' + filename)
+                logging.warning('Error getting file status' + str(response.status_code) + response.text)
                 querydata = (workshopid,)
                 select_query = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
                 cursor.execute(select_query, querydata)
@@ -273,7 +279,7 @@ def setup_conf():
             f.write(f"{key}={value}\n")
 
 
-if __name__ == '__main__':
+def main():
     check_config()
     load_dotenv('.config')
     print('Using path ->  ' + os.getenv('MOD_PATH'))
@@ -295,9 +301,16 @@ if __name__ == '__main__':
         elif menu == '2':
             verify_uploads()
         elif menu == '3':
-            files=get_files_in_directory()
+            files = get_files_in_directory()
             update_database(files)
         elif menu == '4':
             export_csv()
         elif menu == '5':
             setup_conf()
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        logging.exception("main crashed. Error: %s", e)
