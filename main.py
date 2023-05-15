@@ -10,9 +10,9 @@ from tqdm import tqdm
 import logging
 from file import FileInfo
 
-
 logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.WARNING,
                     format='%(asctime)s:%(levelname)s:%(message)s', filemode='a')
+
 
 def get_files_in_directory():
     files = []
@@ -55,7 +55,7 @@ def create_database():
                         "name"	TEXT,
                         "filesize"	TEXT,
                         "workshopid"	TEXT,
-                        "filecount"    TEXT,
+                        "filecount"    TEXT DEFAULT 0,
                         "anon_fileid"	TEXT,
                         "anon_link"	TEXT,
                         "anon_success"	TEXT DEFAULT 0,
@@ -81,40 +81,38 @@ def update_database(givenfiles):
     updateFound = 0
     newlyAdded = 0
 
+    select_query = "SELECT filecount FROM files WHERE workshopid = ?"
+    insert_query = "INSERT INTO files (name, filesize, workshopid, filecount) VALUES (?, ?, ?, ?)"
+    update_query = "UPDATE files SET anon_success = 0, filecount = ?, filesize = ? WHERE workshopid = ?"
+
     for file in givenfiles:
         workshopid = (file.workshop_id,)
-        # Check if the dataset is already in the database
-        select_query = "SELECT filecount FROM files WHERE workshopid=?"
         cursor.execute(select_query, workshopid)
         rows = cursor.fetchone()
+
         if rows is None:
-            # If the dataset is not in the database, insert it
             my_data = (file.name, file.filesize, file.workshop_id, file.filecount)
-            insert_query = 'INSERT INTO files (name, filesize, workshopid, filecount) VALUES (?, ?, ?, ?)'
             cursor.execute(insert_query, my_data)
-            conn.commit()
-            newlyAdded = newlyAdded + 1
+            newlyAdded += 1
         else:
             dbfilecount = int(rows[0])
-            # TODO: Remove Debug
-            # print(str(dbfilecount) + " compared to " + str(file.filecount))
-            if dbfilecount == file.filecount:
-                alreadyInDb = alreadyInDb + 1
-            elif dbfilecount < file.filecount:
-                updateFound = updateFound + 1
-                querydata2 = (file.filecount, file.filesize, file.workshop_id)
-                select_query2 = "UPDATE files SET anon_success = 0, filecount = ?, filesize = ? WHERE workshopid = ?;"
-                cursor.execute(select_query2, (querydata2[0], querydata2[1], querydata2[2]))
-                conn.commit()
-            elif dbfilecount > file.filecount:
-                print(file.name + "Info: File has fewer files than recorded filecount in Database. Ignoring...")
-                logging.info("File has fewer files than recorded filecount in Database. " + '"' + file.name + '"')
-            else:
-                print("Filecount could not be checked.")
 
-    print("\nAdded " + str(newlyAdded) + " new Datasets")
-    print("Updated " + str(updateFound) + " old Datasets")
-    print("Found " + str(alreadyInDb) + " old Datasets")
+            if dbfilecount == file.filecount:
+                alreadyInDb += 1
+            elif dbfilecount < file.filecount:
+                updateFound += 1
+                querydata2 = (file.filecount, file.filesize, file.workshop_id)
+                cursor.execute(update_query, querydata2)
+            elif dbfilecount > file.filecount:
+                print(file.name + "Info: File has fewer files than recorded file count in Database. Ignoring...")
+                logging.info('File has fewer files than recorded file count in Database. "{}"'.format(file.name))
+            else:
+                print("File count could not be checked.")
+
+    print("\nAdded {} new Datasets".format(newlyAdded))
+    print("Updated {} old Datasets".format(updateFound))
+    print("Found {} old Datasets".format(alreadyInDb))
+
     conn.commit()
     cursor.close()
     conn.close()
@@ -157,7 +155,8 @@ def upload_file(file):
     with open(filepath, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
-        monitor2 = MultipartEncoderMonitor(encoder,lambda monitor2: progress_bar.update(monitor2.bytes_read - progress_bar.n))
+        monitor2 = MultipartEncoderMonitor(encoder,
+                                           lambda monitor2: progress_bar.update(monitor2.bytes_read - progress_bar.n))
         headers = {"Content-Type": monitor2.content_type}
         response = requests.post(url, data=monitor2, headers=headers)
         if response.ok:
@@ -178,7 +177,8 @@ def upload_file(file):
                 logging.warning('Upload failed. ' + data['error']['message'])
         else:
             print('Error uploading file')
-            logging.warning('Upload failed. Response was not Ok.' + file.name + str(response.status_code) + response.text)
+            logging.warning(
+                'Upload failed. Response was not Ok.' + file.name + str(response.status_code) + response.text)
 
 
 def community_contribution(filecount, workshopid, name, anon_link):
@@ -206,46 +206,36 @@ def verify_uploads():
     successful = 0
     failed = 0
 
-    # Add a progress bar using the tqdm library
+    update_query_failed = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
+    update_query_success = "UPDATE files SET anon_success = 1, anon_lastSeen = ? WHERE workshopid = ?;"
+
     for row in tqdm(cursor.fetchall(), desc="Verifying uploads"):
-        anon_fileid = row[0]
-        filename = row[1]
-        workshopid = row[2]
+        anon_fileid, filename, workshopid = row[:3]
         api_url = f"https://api.anonfiles.com/v2/file/{anon_fileid}/info"
         response = requests.get(api_url)
-        if response.ok:
-            response_json = json.loads(response.content)
-            status = response_json['status']
-            if status is False:
-                # update anon_success to 0
-                print('\033[31mError getting file status\033[0m' + filename)
-                logging.warning('Error getting file status' + str(response.status_code) + response.text)
-                querydata = (workshopid,)
-                select_query = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
-                cursor.execute(select_query, querydata)
-                failed = failed + 1
-                conn.commit()
-            elif status is True:
-                # update anon_success and last seen
-                querydata = (int(time.time()), workshopid)
-                select_query = "UPDATE files SET anon_success = 1, anon_lastSeen=? WHERE workshopid = ?;"
-                cursor.execute(select_query, querydata)
-                successful = successful + 1
-                conn.commit()
 
+        if response.ok:
+            response_json = response.json()
+            status = response_json['status']
+            if not status:
+                print('\033[31mError getting file status\033[0m', filename)
+                logging.warning('Error getting file status {} {}'.format(response.status_code, response.text))
+                cursor.execute(update_query_failed, (workshopid,))
+                failed += 1
+            else:
+                cursor.execute(update_query_success, (int(time.time()), workshopid))
+                successful += 1
         else:
             print('\033[31mError:', response.status_code, filename, '\033[0m' + '. Will be uploaded again next time')
-            # update anon_success to 0
-            querydata = (workshopid,)
-            select_query = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
-            cursor.execute(select_query, querydata)
-            failed = failed + 1
-            conn.commit()
+            cursor.execute(update_query_failed, (workshopid,))
+            failed += 1
+
+        conn.commit()
 
     print("\n")
+    print('\033[31m{} links are broken and will be reuploaded next time.\033[0m'.format(failed))
+    print('\033[32m{} links have been successfully checked.\033[0m'.format(successful))
 
-    print('\033[31m' + str(failed) + ' links are broken and will be reuploaded next time.' + '\033[0m')
-    print('\033[32m' + str(successful) + ' links have been successfully checked.' + '\033[0m')
     conn.commit()
     cursor.close()
     conn.close()
