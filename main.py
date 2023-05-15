@@ -29,42 +29,48 @@ def get_files_in_directory():
 
 
 def create_database():
-    conn = sqlite3.connect('data.db')
-    if conn:
-        print("Database connection successful")
-    else:
-        print("Connection could not be established (big trouble)\n")
-        return
-    cursor = conn.cursor()
-    # Define the table to check for
-    table_name = 'files'
-    # Execute a query to check if the table exists
-    query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
-    cursor.execute(query)
+    try:
+        # Connect to the database
+        conn = sqlite3.connect('data.db')
+        if conn:
+            print("Database connection successful")
+        else:
+            print("Connection could not be established (big trouble)\n")
+            logging.error("Connection could not be established (big trouble)")
+            return
+        cursor = conn.cursor()
+        # Define the table to check for
+        table_name = 'files'
+        # Execute a query to check if the table exists
+        query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
+        cursor.execute(query)
 
-    # Check if the table exists in the database
-    if cursor.fetchone():
-        print('Use existing database')
-    else:
-        print('Table creation...')
-        cursor.execute('''
-                CREATE TABLE "files" (
-                "name"	TEXT,
-                "filesize"	TEXT,
-                "workshopid"	TEXT,
-                "filecount"    TEXT,
-                "anon_fileid"	TEXT,
-                "anon_link"	TEXT,
-                "anon_success"	TEXT DEFAULT 0,
-                "anon_lastSeen"	TEXT,
-                UNIQUE("anon_fileid"),
-                UNIQUE("workshopid"),
-                PRIMARY KEY("workshopid")
-                )''')
+        # Check if the table exists in the database
+        if cursor.fetchone():
+            print('Use existing database')
+        else:
+            print('Table creation...')
+            cursor.execute('''
+                        CREATE TABLE "files" (
+                        "name"	TEXT,
+                        "filesize"	TEXT,
+                        "workshopid"	TEXT,
+                        "filecount"    TEXT,
+                        "anon_fileid"	TEXT,
+                        "anon_link"	TEXT,
+                        "anon_success"	TEXT DEFAULT 0,
+                        "anon_lastSeen"	TEXT,
+                        UNIQUE("anon_fileid"),
+                        UNIQUE("workshopid"),
+                        PRIMARY KEY("workshopid")
+                        )''')
 
-    # Close and commit the database connection
-    conn.commit()
-    conn.close()
+        # Close and commit the database connection
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("An error occurred:", str(e))
+        logging.info("Error: Unable to open the zip file. " + '"' + e + '"')
 
 
 def update_database(givenfiles):
