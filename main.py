@@ -55,7 +55,7 @@ def create_database():
                         "name"	TEXT,
                         "filesize"	TEXT,
                         "workshopid"	TEXT,
-                        "filecount"    TEXT,
+                        "filecount"    TEXT DEFAULT 0,
                         "anon_fileid"	TEXT,
                         "anon_link"	TEXT,
                         "anon_success"	TEXT DEFAULT 0,
@@ -81,40 +81,38 @@ def update_database(givenfiles):
     updateFound = 0
     newlyAdded = 0
 
+    select_query = "SELECT filecount FROM files WHERE workshopid = ?"
+    insert_query = "INSERT INTO files (name, filesize, workshopid, filecount) VALUES (?, ?, ?, ?)"
+    update_query = "UPDATE files SET anon_success = 0, filecount = ?, filesize = ? WHERE workshopid = ?"
+
     for file in givenfiles:
         workshopid = (file.workshop_id,)
-        # Check if the dataset is already in the database
-        select_query = "SELECT filecount FROM files WHERE workshopid=?"
         cursor.execute(select_query, workshopid)
         rows = cursor.fetchone()
+
         if rows is None:
-            # If the dataset is not in the database, insert it
             my_data = (file.name, file.filesize, file.workshop_id, file.filecount)
-            insert_query = 'INSERT INTO files (name, filesize, workshopid, filecount) VALUES (?, ?, ?, ?)'
             cursor.execute(insert_query, my_data)
-            conn.commit()
-            newlyAdded = newlyAdded + 1
+            newlyAdded += 1
         else:
             dbfilecount = int(rows[0])
-            # TODO: Remove Debug
-            # print(str(dbfilecount) + " compared to " + str(file.filecount))
-            if dbfilecount == file.filecount:
-                alreadyInDb = alreadyInDb + 1
-            elif dbfilecount < file.filecount:
-                updateFound = updateFound + 1
-                querydata2 = (file.filecount, file.filesize, file.workshop_id)
-                select_query2 = "UPDATE files SET anon_success = 0, filecount = ?, filesize = ? WHERE workshopid = ?;"
-                cursor.execute(select_query2, (querydata2[0], querydata2[1], querydata2[2]))
-                conn.commit()
-            elif dbfilecount > file.filecount:
-                print(file.name + "Info: File has fewer files than recorded filecount in Database. Ignoring...")
-                logging.info("File has fewer files than recorded filecount in Database. " + '"' + file.name + '"')
-            else:
-                print("Filecount could not be checked.")
 
-    print("\nAdded " + str(newlyAdded) + " new Datasets")
-    print("Updated " + str(updateFound) + " old Datasets")
-    print("Found " + str(alreadyInDb) + " old Datasets")
+            if dbfilecount == file.filecount:
+                alreadyInDb += 1
+            elif dbfilecount < file.filecount:
+                updateFound += 1
+                querydata2 = (file.filecount, file.filesize, file.workshop_id)
+                cursor.execute(update_query, querydata2)
+            elif dbfilecount > file.filecount:
+                print(file.name + "Info: File has fewer files than recorded file count in Database. Ignoring...")
+                logging.info('File has fewer files than recorded file count in Database. "{}"'.format(file.name))
+            else:
+                print("File count could not be checked.")
+
+    print("\nAdded {} new Datasets".format(newlyAdded))
+    print("Updated {} old Datasets".format(updateFound))
+    print("Found {} old Datasets".format(alreadyInDb))
+
     conn.commit()
     cursor.close()
     conn.close()
