@@ -199,51 +199,53 @@ def community_contribution(filecount, workshopid, name, anon_link):
 
 
 def verify_uploads():
-    conn = sqlite3.connect('data.db')
-    cursor = conn.cursor()
-    select_query = "SELECT anon_fileid, name, workshopid FROM files WHERE anon_fileid IS NOT NULL;"
-    cursor.execute(select_query)
-    successful = 0
-    failed = 0
+    try:
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
+        select_query = "SELECT anon_fileid, name, workshopid FROM files WHERE anon_fileid IS NOT NULL;"
+        cursor.execute(select_query)
+        successful = 0
+        failed = 0
 
-    update_query_failed = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
-    update_query_success = "UPDATE files SET anon_success = 1, anon_lastSeen = ? WHERE workshopid = ?;"
+        update_query_failed = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
+        update_query_success = "UPDATE files SET anon_success = 1, anon_lastSeen = ? WHERE workshopid = ?;"
 
-    for row in tqdm(cursor.fetchall(), desc="Verifying uploads"):
-        anon_fileid, filename, workshopid = row[:3]
-        api_url = f"https://api.anonfiles.com/v2/file/{anon_fileid}/info"
-        response = requests.get(api_url)
+        for row in tqdm(cursor.fetchall(), desc="Verifying uploads"):
+            anon_fileid, filename, workshopid = row[:3]
+            api_url = f"https://api.anonfiles.com/v2/file/{anon_fileid}/info"
+            response = requests.get(api_url)
 
-        if response.ok:
-            response_json = response.json()
-            status = response_json['status']
-            if not status:
-                print('\033[31mError getting file status\033[0m', filename)
-                logging.warning('Error getting file status {} {}'.format(response.status_code, response.text))
+            if response.ok:
+                response_json = response.json()
+                status = response_json['status']
+                if not status:
+                    print('\033[31mError getting file status\033[0m', filename)
+                    logging.warning('Error getting file status {} {}'.format(response.status_code, response.text))
+                    cursor.execute(update_query_failed, (workshopid,))
+                    failed += 1
+                else:
+                    cursor.execute(update_query_success, (int(time.time()), workshopid))
+                    successful += 1
+            else:
+                print('\033[31mError:', response.status_code, filename, '\033[0m' + '. Will be uploaded again next time')
                 cursor.execute(update_query_failed, (workshopid,))
                 failed += 1
-            else:
-                cursor.execute(update_query_success, (int(time.time()), workshopid))
-                successful += 1
-        else:
-            print('\033[31mError:', response.status_code, filename, '\033[0m' + '. Will be uploaded again next time')
-            cursor.execute(update_query_failed, (workshopid,))
-            failed += 1
+
+            conn.commit()
+
+        print("\n")
+        print('\033[31m{} links are broken and will be reuploaded next time.\033[0m'.format(failed))
+        print('\033[32m{} links have been successfully checked.\033[0m'.format(successful))
 
         conn.commit()
-
-    print("\n")
-    print('\033[31m{} links are broken and will be reuploaded next time.\033[0m'.format(failed))
-    print('\033[32m{} links have been successfully checked.\033[0m'.format(successful))
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-
+        cursor.close()
+        conn.close()
+    except KeyboardInterrupt:
+        print("\033[91m" + "\n \n Verifying stopped by user.\n" + "\033[0m")
 
 def export_csv():
-    with open('export.csv', 'w+', newline='') as write_file:
-        writer = csv.writer(write_file)
+    with open('export.csv', 'w+', newline='', encoding="utf-8") as write_file:
+        writer = csv.writer(write_file, quoting=csv.QUOTE_ALL)
         conn = sqlite3.connect('data.db')
         cursor = conn.cursor()
         # create a cursor object (which lets you address the table results individually)
