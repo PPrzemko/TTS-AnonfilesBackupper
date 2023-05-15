@@ -11,7 +11,7 @@ import logging
 from file import FileInfo
 
 
-logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.DEBUG,
+logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.WARNING,
                     format='%(asctime)s:%(levelname)s:%(message)s', filemode='a')
 
 def get_files_in_directory():

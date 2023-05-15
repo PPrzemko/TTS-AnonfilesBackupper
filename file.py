@@ -1,7 +1,7 @@
 import logging
 import zipfile
 
-logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.DEBUG,
+logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.WARNING,
                     format='%(asctime)s:%(levelname)s:%(message)s', filemode='a')
 class FileInfo:
     def __init__(self, path, name, size):
