@@ -10,9 +10,9 @@ from tqdm import tqdm
 import logging
 from file import FileInfo
 
-
 logging.basicConfig(filename='TTS-AnonfilesBackupper.log', level=logging.WARNING,
                     format='%(asctime)s:%(levelname)s:%(message)s', filemode='a')
+
 
 def get_files_in_directory():
     files = []
@@ -155,7 +155,8 @@ def upload_file(file):
     with open(filepath, "rb") as f:
         encoder = MultipartEncoder({"file": (file.name, f)})
         progress_bar = tqdm(total=encoder.len, unit="B", unit_scale=True)
-        monitor2 = MultipartEncoderMonitor(encoder,lambda monitor2: progress_bar.update(monitor2.bytes_read - progress_bar.n))
+        monitor2 = MultipartEncoderMonitor(encoder,
+                                           lambda monitor2: progress_bar.update(monitor2.bytes_read - progress_bar.n))
         headers = {"Content-Type": monitor2.content_type}
         response = requests.post(url, data=monitor2, headers=headers)
         if response.ok:
@@ -176,7 +177,8 @@ def upload_file(file):
                 logging.warning('Upload failed. ' + data['error']['message'])
         else:
             print('Error uploading file')
-            logging.warning('Upload failed. Response was not Ok.' + file.name + str(response.status_code) + response.text)
+            logging.warning(
+                'Upload failed. Response was not Ok.' + file.name + str(response.status_code) + response.text)
 
 
 def community_contribution(filecount, workshopid, name, anon_link):
@@ -204,46 +206,36 @@ def verify_uploads():
     successful = 0
     failed = 0
 
-    # Add a progress bar using the tqdm library
+    update_query_failed = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
+    update_query_success = "UPDATE files SET anon_success = 1, anon_lastSeen = ? WHERE workshopid = ?;"
+
     for row in tqdm(cursor.fetchall(), desc="Verifying uploads"):
-        anon_fileid = row[0]
-        filename = row[1]
-        workshopid = row[2]
+        anon_fileid, filename, workshopid = row[:3]
         api_url = f"https://api.anonfiles.com/v2/file/{anon_fileid}/info"
         response = requests.get(api_url)
-        if response.ok:
-            response_json = json.loads(response.content)
-            status = response_json['status']
-            if status is False:
-                # update anon_success to 0
-                print('\033[31mError getting file status\033[0m' + filename)
-                logging.warning('Error getting file status' + str(response.status_code) + response.text)
-                querydata = (workshopid,)
-                select_query = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
-                cursor.execute(select_query, querydata)
-                failed = failed + 1
-                conn.commit()
-            elif status is True:
-                # update anon_success and last seen
-                querydata = (int(time.time()), workshopid)
-                select_query = "UPDATE files SET anon_success = 1, anon_lastSeen=? WHERE workshopid = ?;"
-                cursor.execute(select_query, querydata)
-                successful = successful + 1
-                conn.commit()
 
+        if response.ok:
+            response_json = response.json()
+            status = response_json['status']
+            if not status:
+                print('\033[31mError getting file status\033[0m', filename)
+                logging.warning('Error getting file status {} {}'.format(response.status_code, response.text))
+                cursor.execute(update_query_failed, (workshopid,))
+                failed += 1
+            else:
+                cursor.execute(update_query_success, (int(time.time()), workshopid))
+                successful += 1
         else:
             print('\033[31mError:', response.status_code, filename, '\033[0m' + '. Will be uploaded again next time')
-            # update anon_success to 0
-            querydata = (workshopid,)
-            select_query = "UPDATE files SET anon_success = 0 WHERE workshopid = ?;"
-            cursor.execute(select_query, querydata)
-            failed = failed + 1
-            conn.commit()
+            cursor.execute(update_query_failed, (workshopid,))
+            failed += 1
+
+        conn.commit()
 
     print("\n")
+    print('\033[31m{} links are broken and will be reuploaded next time.\033[0m'.format(failed))
+    print('\033[32m{} links have been successfully checked.\033[0m'.format(successful))
 
-    print('\033[31m' + str(failed) + ' links are broken and will be reuploaded next time.' + '\033[0m')
-    print('\033[32m' + str(successful) + ' links have been successfully checked.' + '\033[0m')
     conn.commit()
     cursor.close()
     conn.close()
