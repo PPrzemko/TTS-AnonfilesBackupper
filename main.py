@@ -86,7 +86,6 @@ def update_database(givenfiles):
         # Check if the dataset is already in the database
         select_query = "SELECT filecount FROM files WHERE workshopid=?"
         cursor.execute(select_query, workshopid)
-        rows =cursor.fetchone()
         rows = cursor.fetchone()
         if rows is None:
             # If the dataset is not in the database, insert it
