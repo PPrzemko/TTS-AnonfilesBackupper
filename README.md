@@ -39,6 +39,14 @@ python3 main.py
 4. - export to csv 
 5. - enter setup config
 
+### **Anonfiles TOS**
+
+**What are the limit of uploads?**
+
+You are free to upload as long as you don't exceed the following restrictions:
+- Max 20 GB per file
+- Max 500 files or 50 GB per hour.
+- Max 5,000 files or 100 GB per day.
 
 
 ## Contributing
