@@ -7,14 +7,14 @@ It also has the ability to validate all links in the database and mark any that 
 Additionally, there is a community contribution feature where all links are sent to a Google form, which is linked to a [spreadsheet](https://docs.google.com/spreadsheets/d/13npagZxitdzyb-YC1w-ZdjYuAh8aDzXhrjZBE0-zKFo/edit?usp=sharing)
 
 ## Installation 
-### From Release - Windows10/11 only
+### From Release - (Windows tested Windows10/11)
 1. Download the latest version of the TTS-Anonfiles Backupper.
 2. Run the "TTS-AnonfilesBackupper.exe" file to launch the program.
 3. Enter your API key, which you can obtain from the [AnonFiles](https://anonfiles.com/docs/api) website after creating an account.
 4. Choose if you want to contribute your uploads. (true,false)
 5. Optionally, you can modify the "api-key", "path" and "community contribution" settings in the configuration (.config) file.
 
-### Linux (Tested on Ubuntu 22.04.2 LTS)
+### From Source - (Linux tested on Ubuntu 22.04.2 LTS)
 Make sure to have python installed (Tested with Python 3.10.6)
 - Manually download the required files.
 - or with git
